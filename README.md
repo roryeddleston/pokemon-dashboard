@@ -1,36 +1,81 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Pokémon Portfolio Dashboard
 
-## Getting Started
+A full-stack demo application for tracking Pokémon card holdings and portfolio performance.
 
-First, run the development server:
+Built to demonstrate modern React, Next.js App Router, Prisma 7, PostgreSQL, and clean backend architecture.
+
+---
+
+## Tech Stack
+
+- Next.js 16 (App Router)
+- TypeScript
+- Prisma 7
+- Neon Postgres
+- Tailwind CSS
+- Node (server runtime)
+
+---
+
+## Architecture
+
+Frontend → API Routes → Prisma → Neon Postgres
+
+The application uses Next.js Route Handlers (`app/api/.../route.ts`) as backend endpoints.
+
+Database access is handled through Prisma 7 using the Neon adapter.
+
+A deterministic seed system is implemented to support:
+
+- A public demo dataset (`ownerId="demo"`)
+- A template dataset (`ownerId="demo-template"`)
+- Safe reset architecture
+
+---
+
+## Key Features
+
+- Portfolio holdings CRUD (in progress)
+- Snapshot tracking
+- Deterministic seed system
+- Clean separation of API and data layer
+- Owner scoping to prevent IDOR in demo environment
+
+---
+
+## Database Design
+
+Two core models:
+
+### Holding
+
+Represents a card holding.
+
+### PriceSnapshot
+
+Represents historical valuation data for a holding.
+
+Indexes are applied for:
+
+- owner scoping
+- chronological queries
+- uniqueness constraints
+
+---
+
+## Security Considerations
+
+- Environment variables are never committed
+- Server-only Prisma client
+- Owner scoping applied at query level
+- Future: input validation (Zod), rate limiting on write endpoints
+
+---
+
+## Development
+
+Install dependencies:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
