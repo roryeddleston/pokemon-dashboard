@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-
-const DEMO_OWNER_ID = "demo";
+import { DEMO_OWNER_ID } from "@/lib/constants";
 
 export async function GET() {
   try {
@@ -10,7 +9,8 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
       include: {
         snapshots: {
-          orderBy: { capturedAt: "asc" },
+          orderBy: { capturedAt: "desc" },
+          take: 1, // keep response small; full history comes from a dedicated endpoint later
         },
       },
     });
