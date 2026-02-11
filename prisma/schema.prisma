@@ -12,7 +12,7 @@ model Holding {
   cardId        String
   cardName      String
   setName       String
-  grade         String?
+  grade         String   @default("RAW")
   purchasePrice Float
   quantity      Int      @default(1)
   createdAt     DateTime @default(now())
