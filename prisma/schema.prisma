@@ -1,14 +1,38 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client"
-  output   = "../lib/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+model Holding {
+  id            String   @id @default(cuid())
+  ownerId       String
+  cardId        String
+  cardName      String
+  setName       String
+  grade         String?
+  purchasePrice Float
+  quantity      Int      @default(1)
+  createdAt     DateTime @default(now())
+
+  snapshots     PriceSnapshot[]
+
+  @@index([ownerId])
+  @@index([ownerId, createdAt])
+  @@unique([ownerId, cardId, grade])
+}
+
+model PriceSnapshot {
+  id         String   @id @default(cuid())
+  ownerId    String
+  holdingId  String
+  value      Float
+  capturedAt DateTime @default(now())
+
+  holding Holding @relation(fields: [holdingId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId])
+  @@index([holdingId, capturedAt])
 }
