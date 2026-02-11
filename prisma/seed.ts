@@ -1,11 +1,20 @@
+import "dotenv/config";
+import ws from "ws";
 import { PrismaClient, type Holding } from "@prisma/client";
+import { PrismaNeon } from "@prisma/adapter-neon";
+import { neonConfig } from "@neondatabase/serverless";
 
-const prisma = new PrismaClient();
+neonConfig.webSocketConstructor = ws;
 
-/**
- * NOTE: Keep these in sync with `lib/constants.ts`.
- * We intentionally duplicate here to avoid cross-importing app code into Prisma scripts.
- */
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL is missing");
+}
+
+const adapter = new PrismaNeon({
+  connectionString: process.env.DATABASE_URL,
+});
+
+const prisma = new PrismaClient({ adapter });
 
 const DEMO_OWNER_ID = "demo";
 const TEMPLATE_OWNER_ID = "demo-template";
@@ -15,15 +24,16 @@ const holdingKey = (h: Pick<Holding, "cardId" | "grade">) =>
 
 async function main() {
   await prisma.$transaction(async (tx) => {
-    // 1) Clean existing template + demo data (idempotent)
+    // Clean existing template + demo data (idempotent)
     await tx.priceSnapshot.deleteMany({
       where: { ownerId: { in: [DEMO_OWNER_ID, TEMPLATE_OWNER_ID] } },
     });
+
     await tx.holding.deleteMany({
       where: { ownerId: { in: [DEMO_OWNER_ID, TEMPLATE_OWNER_ID] } },
     });
 
-    // 2) Create template holdings
+    // Create template holdings
     await tx.holding.createMany({
       data: [
         {
@@ -56,14 +66,12 @@ async function main() {
       ],
     });
 
-    // 3) Read template holdings for snapshot creation + cloning
     const templateHoldings = await tx.holding.findMany({
       where: { ownerId: TEMPLATE_OWNER_ID },
       orderBy: { createdAt: "asc" },
     });
 
-    // 4) Create template snapshots (baseline history)
-    // Keep this intentionally small for demo clarity.
+    // Create template snapshots
     for (const h of templateHoldings) {
       const baseValue = h.purchasePrice * 1.2;
 
@@ -74,11 +82,7 @@ async function main() {
             holdingId: h.id,
             value: baseValue * 0.9,
           },
-          {
-            ownerId: TEMPLATE_OWNER_ID,
-            holdingId: h.id,
-            value: baseValue * 1.0,
-          },
+          { ownerId: TEMPLATE_OWNER_ID, holdingId: h.id, value: baseValue },
           {
             ownerId: TEMPLATE_OWNER_ID,
             holdingId: h.id,
@@ -88,7 +92,7 @@ async function main() {
       });
     }
 
-    // 5) Clone template holdings → demo holdings
+    // Clone template → demo holdings
     await tx.holding.createMany({
       data: templateHoldings.map((h) => ({
         ownerId: DEMO_OWNER_ID,
@@ -105,26 +109,27 @@ async function main() {
       where: { ownerId: DEMO_OWNER_ID },
     });
 
-    // 6) Build lookup: (cardId+grade) → demo holding id
     const demoIdByKey = new Map<string, string>();
-    for (const h of demoHoldings) demoIdByKey.set(holdingKey(h), h.id);
+    for (const h of demoHoldings) {
+      demoIdByKey.set(holdingKey(h), h.id);
+    }
 
-    // 7) Clone template snapshots → demo snapshots
     const templateSnapshots = await tx.priceSnapshot.findMany({
       where: { ownerId: TEMPLATE_OWNER_ID },
       orderBy: { capturedAt: "asc" },
     });
 
-    // Build lookup: template holding id → (cardId+grade) key
     const templateKeyById = new Map<string, string>();
-    for (const h of templateHoldings) templateKeyById.set(h.id, holdingKey(h));
+    for (const h of templateHoldings) {
+      templateKeyById.set(h.id, holdingKey(h));
+    }
 
     await tx.priceSnapshot.createMany({
       data: templateSnapshots.flatMap((s) => {
-        const k = templateKeyById.get(s.holdingId);
-        if (!k) return [];
+        const key = templateKeyById.get(s.holdingId);
+        if (!key) return [];
 
-        const demoHoldingId = demoIdByKey.get(k);
+        const demoHoldingId = demoIdByKey.get(key);
         if (!demoHoldingId) return [];
 
         return [
@@ -139,7 +144,6 @@ async function main() {
     });
   });
 
-  // Only log after transaction commits successfully
   console.log("✅ Seeded template + demo data");
 }
 
