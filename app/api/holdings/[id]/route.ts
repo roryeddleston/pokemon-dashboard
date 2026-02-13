@@ -1,13 +1,18 @@
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { DEMO_OWNER_ID } from "@/lib/constants";
 import { updateHoldingSchema } from "@/lib/validators/holding-update";
 
+type ParamsPromise = Promise<{ id: string }>;
+
 export async function PATCH(
-  req: Request,
-  { params }: { params: { id: string } }
+  req: NextRequest,
+  { params }: { params: ParamsPromise }
 ) {
   try {
+    const { id } = await params;
+
     const body = await req.json();
     const parsed = updateHoldingSchema.safeParse(body);
 
@@ -20,7 +25,7 @@ export async function PATCH(
 
     // IDOR protection: ensure holding belongs to demo owner
     const existing = await prisma.holding.findFirst({
-      where: { id: params.id, ownerId: DEMO_OWNER_ID },
+      where: { id, ownerId: DEMO_OWNER_ID },
       select: { id: true },
     });
 
