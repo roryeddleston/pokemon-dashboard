@@ -10,12 +10,40 @@ export async function GET() {
       include: {
         snapshots: {
           orderBy: { capturedAt: "desc" },
-          take: 1, // keep response small; full history comes from a dedicated endpoint later
+          take: 1, // only latest snapshot for performance
         },
       },
     });
 
-    return NextResponse.json({ holdings });
+    // Compute summary in one pass (O(n))
+    let totalInvested = 0;
+    let totalValue = 0;
+
+    for (const holding of holdings) {
+      const latestSnapshot = holding.snapshots[0];
+
+      const invested = holding.purchasePrice * holding.quantity;
+      const value = latestSnapshot
+        ? latestSnapshot.value * holding.quantity
+        : invested;
+
+      totalInvested += invested;
+      totalValue += value;
+    }
+
+    const totalProfit = totalValue - totalInvested;
+    const profitPercentage =
+      totalInvested === 0 ? 0 : (totalProfit / totalInvested) * 100;
+
+    return NextResponse.json({
+      holdings,
+      summary: {
+        totalInvested,
+        totalValue,
+        totalProfit,
+        profitPercentage,
+      },
+    });
   } catch (error) {
     console.error("GET /api/portfolio failed:", error);
 
